@@ -361,6 +361,10 @@ class SubmissionSpeakers(ReviewerSubmissionFilter, SubmissionViewMixin, Template
                 "other_submissions": speaker.submissions.filter(
                     event=submission.event
                 ).exclude(code=submission.code),
+                "email": speaker.email,
+                "avatar": speaker.avatar,
+                "avatar_source": speaker.avatar_source,
+                "avatar_license": speaker.avatar_license,
             }
             for speaker in submission.speakers.all()
         ]
@@ -375,7 +379,7 @@ class SubmissionContent(
 ):
     model = Submission
     form_class = SubmissionForm
-    template_name = "orga/submission/content.html"
+    template_name = "orga/submission/content_edit.html"
     permission_required = "orga.view_submissions"
 
     def get_object(self):
@@ -556,6 +560,30 @@ class SubmissionContent(
         kwargs["read_only"] = kwargs["read_only"] or kwargs["anonymise"]
         return kwargs
 
+
+class SubmissionContentView(SubmissionContent):
+    template_name = "orga/submission/content.html"
+
+    def get_object(self):
+        try:
+            return super().get_object()
+        except Http404 as not_found:
+            if self.request.path.rstrip("/").endswith("/new"):
+                return None
+            raise not_found
+
+    def get_permission_required(self):
+        if "code" in self.kwargs:
+            return ["submission.edit_submission"]
+        return ["orga.create_submission"]
+
+    @property
+    def permission_object(self):
+        return self.object or self.request.event
+
+    def get_permission_object(self):
+        return self.permission_object
+    
 
 class BaseSubmissionList(Sortable, ReviewerSubmissionFilter, PaginationMixin, ListView):
     model = Submission
